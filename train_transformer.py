@@ -48,8 +48,13 @@ def main(args: argparse.Namespace) -> None:
     title_col = args.title_col or _pick_text_columns(columns)[1]
     label_col = args.label_col or _pick_label_column(columns)
 
-    if args.max_samples:
-        data = data.select(range(args.max_samples))
+    if args.shuffle:
+        data = data.shuffle(seed=args.seed)
+
+    if args.max_samples is not None:
+        start = args.start or 0
+        end = start + args.max_samples
+        data = data.select(range(start, end))
 
     labels = sorted(set(data[label_col]))
     label2id = {label: idx for idx, label in enumerate(labels)}
@@ -124,7 +129,7 @@ def main(args: argparse.Namespace) -> None:
         compute_metrics=compute_metrics,
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.out_dir)
     tokenizer.save_pretrained(args.out_dir)
 
@@ -143,6 +148,10 @@ if __name__ == "__main__":
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--max-length", type=int, default=256)
     parser.add_argument("--max-samples", type=int, default=None)
+    parser.add_argument("--start", type=int, default=None)
+    parser.add_argument("--shuffle", action="store_true")
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--out-dir", default="artifacts_transformer")
+    parser.add_argument("--resume-from-checkpoint", default=None)
     main(parser.parse_args())
