@@ -1,1 +1,10 @@
 .git
+__pycache__/
+artifacts/
+artifacts_transformer/
+*.joblib
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.log
