@@ -43,6 +43,10 @@ Resume training from a checkpoint and continue on a different slice:
 
 - `python train_transformer.py --model-name xlm-roberta-base --start 100000 --max-samples 400000 --val-size 0.125 --shuffle --resume-from-checkpoint artifacts_transformer/checkpoint-XXXX`
 
+If you want to keep a consistent label set across runs, add:
+
+- `--label-source full`
+
 Predict:
 
 - `python predict_transformer.py --text "your news text here"`

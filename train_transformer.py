@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score, f1_score
 import numpy as np
 import torch
 from transformers import (
+    AutoConfig,
     AutoTokenizer,
     AutoModelForSequenceClassification,
     DataCollatorWithPadding,
@@ -56,15 +57,34 @@ def main(args: argparse.Namespace) -> None:
         end = start + args.max_samples
         data = data.select(range(start, end))
 
-    labels = sorted(set(data[label_col]))
-    label2id = {label: idx for idx, label in enumerate(labels)}
-    id2label = {idx: label for label, idx in label2id.items()}
+    if args.resume_from_checkpoint:
+        config = AutoConfig.from_pretrained(args.resume_from_checkpoint)
+        id2label = {
+            int(k) if isinstance(k, str) and k.isdigit() else int(k): v
+            for k, v in config.id2label.items()
+        }
+        label2id = {v: k for k, v in id2label.items()}
+    else:
+        label_source = args.label_source
+        if label_source == "full":
+            all_labels = ds[split][label_col]
+            labels = sorted(set(all_labels))
+        else:
+            labels = sorted(set(data[label_col]))
+        label2id = {label: idx for idx, label in enumerate(labels)}
+        id2label = {idx: label for label, idx in label2id.items()}
 
     def preprocess(example):
         text = _join_texts(example, text_col, title_col)
+        label_value = example[label_col]
+        if label_value not in label2id:
+            raise ValueError(
+                f"Label '{label_value}' not in label set. "
+                "Use --label-source full or ensure label mapping matches checkpoint."
+            )
         return {
             "text": text,
-            "label": label2id[example[label_col]],
+            "label": label2id[label_value],
         }
 
     data = data.map(preprocess, remove_columns=data.column_names)
@@ -154,4 +174,10 @@ if __name__ == "__main__":
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--out-dir", default="artifacts_transformer")
     parser.add_argument("--resume-from-checkpoint", default=None)
+    parser.add_argument(
+        "--label-source",
+        choices=["subset", "full"],
+        default="subset",
+        help="Build label set from subset or full dataset",
+    )
     main(parser.parse_args())
